@@ -1,0 +1,479 @@
+---
+title: 'Business Statistics End of Term Assessment IB94X0 2023-2024 #1'
+author: '5587354'
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(Hmisc)
+library(emmeans)
+library(kableExtra)
+library(gridExtra)
+
+```
+
+# **Question 1**
+Our aim is to examine the effect upon bike hires as a result of the COVID 
+factors namely: Work From Home, Rule of 6 Indoors, and the Eat Out to Help Out scheme and further perform analysis on their potential differnces across years, months and days.
+
+### **Data Reading**
+
+```{r}
+#To read the dataset 
+london_cycles<-read.csv("London_COVID_bikes.csv")
+rules<-read.csv("restrictions_summary.csv")
+```
+
+
+### **Data Dictionary**
+The variables are described in the table below:
+
+| Variable                         | Description                                          |
+|----------------------------------|------------------------------------------------------|
+| date                             | Date                                               |
+| Hires                            | Number of Bike Hires                                 |
+| school_closed                    | Whether schools were closed or not                           |
+| pubs_closed                      | Whether pubs were closed or not                              |
+| shops_closed                     | Whether shops were closed or not                             |
+| eating_places_closed             | Whether eating places were closed or not                     |
+| stay_at_home                     | Whether there was a stay at home order or not        |
+| household_mixing_indoors_banned  | Whether household mixing indoors were banned or not  |
+| wfh                              | Work from home was active or not          |
+| rule_of_6_indoors                | Rule of 6 indoors was active or not                  |
+| curfew                           | Curfew was there or not                          |
+| eat_out_to_help_out              | Whether eat out to help out was active or not        |
+| day                              | Day when data was recorded                                     |
+| month                            | Month when data was recorded                                               |
+| year                             | Year in which data was recorded                                                |
+
+
+
+### **Data Structure and Summary**
+```{r}
+#To check the structure of the data structure
+str(london_cycles)
+
+#based on the structure we are converting month ,day and year from character and integer to factor
+london_cycles$month<-as.factor(london_cycles$month)
+london_cycles$day<-as.factor(london_cycles$day)
+london_cycles$year<-as.factor(london_cycles$year)
+
+#to print the summary of the data set
+summary(london_cycles)
+
+```
+
+### **Data Cleaning**
+
+```{r}
+#Boxplot representing the Hires as a variable in order to identify outliers
+bp<-boxplot(london_cycles$Hires,
+  ylab = "hires"
+)
+#Histogram representing the Hires over density giving us the distribution of Hires along with the density curve
+ggplot(london_cycles,aes(x=Hires,y=..density..))+
+geom_histogram()+geom_density(color="red" , alpha=20)+labs(title = "Figure 2. The Distribution of Hires   ")+theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1))
+
+
+
+```
+
+Even though there are 16 outliers present, since the histogram and the density curves are smooth, we tend to ignore the outliers and they might be real life cases of such Hires.
+
+
+
+
+### **Visualizing the trend of Hires across various Years**
+
+```{r}
+#Grouping the various datas along side their respective years
+cycle<-london_cycles %>% group_by(year)
+
+#Converting month as a factor and sorting them based on chronological order
+cycle$month<-factor(cycle$month, levels=month.abb)
+
+#Grouping the various data points along side month
+cycle_new<-cycle%>%group_by(year,month)
+
+#Calculating the mean Hires for the various months across different years
+cycle_new<-cycle_new%>%summarise(mean=mean(Hires))
+
+
+#Plot representing the distribution of various years across months
+ggplot(cycle_new) + geom_line(aes(y=mean,x=month,                                               group=year,color=year))+
+  labs(title = "Figure 3. The Distribution of Hires of Bikes across the years over months ")+
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())
+
+#new data set summarizing means of hires across various years
+cycleyear<-london_cycles%>%group_by(year)%>%summarise(mean_hires=mean(Hires))
+
+#Plot representing a trend line of Hires across various years
+ggplot(cycleyear,aes(x=year, y=mean_hires)) + geom_point(color="red") + geom_line(group=1)+ labs(x="Year", y=" Mean Number of Bikes Hired", col="year")+geom_vline(xintercept="2020",lty=4)+
+theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())+
+  labs(title = "Figure 4. The Distribution of Mean Hires of Bikes across the years")
+
+
+
+```
+
+
+From the Figure 3 we can infer the trends of Hires along side multiple years for each month. From this we gather information for the rest of the repeated measure analysis.
+
+
+### **Correlation between the Variables**
+```{r}
+#We do this to check for co-relation between the covid variables and the target variable
+rcorr(as.matrix(select(london_cycles, rule_of_6_indoors, wfh,eat_out_to_help_out,Hires)))
+
+```
+
+From the above correlation matrix we can say that the variables eat out to help out(r=0.08,p<0.001) , work from home(r=0.08,p<0.001) and rule of 6(r=0.13, p<0.001) have a very minimal significance over the variable Hires.
+
+### **To find the interaction of the 3 variables on Hires**
+```{r}
+#Linear Model for the main effect of covid variables on Hires and its summary
+hiresmain<-lm(Hires~rule_of_6_indoors+wfh+eat_out_to_help_out, data= london_cycles)
+summary(hiresmain)
+
+#Linear Model for the combined effect of covid variables on Hires and its summary
+hiresintrxn<-lm(Hires~rule_of_6_indoors*wfh*eat_out_to_help_out, data= london_cycles)
+summary(hiresintrxn)
+
+#Anova model comparing the above 2 models
+hirescomp<-anova(hiresintrxn,hiresmain)
+hirescomp
+```
+From the above analysis we can say that the main effect model(F(4,4807)=34.54,p<0.05) has a greater significant impact(RSS=4.4022,p<0.01, Adjusted R-squared=0.026) on Hires and thus each individual variable has an impact over the Hires.
+
+### **Effect of Eat Out to Help Out**
+```{r}
+#Multi-Linear model to know the combined effect of eat out to help out and year on Hires
+eohoyear<-lm(Hires~eat_out_to_help_out*year, data = cycle)
+summary(eohoyear)
+```
+
+From the above values we can see that eat out to help out is not significant (F(14,4797)=67.07, p<0.001) for any of the years. This is because the scheme was introduced only in the year 2020.
+
+```{r}
+#Filtering the Year 2020 alone
+cycle2020<-filter(cycle,year == 2020)
+
+#Creating a proportions table to know the distribution of the variable eat out to help out across 2020
+compmonth <- prop.table(table(cycle2020$eat_out_to_help_out))
+compmonth
+```
+Based on the COVID-19 Restrictions Rules and Regulations Summary and the analysis we can see that , EOHO is being implemented only during august first to thirty first in the year 2020.
+Thus we perform the analysis on that specific month and year.
+
+```{r}
+
+#The following segment of code has been done to find the direct influence of eat out to help out on hires for 2020 year
+
+
+cycleseoho.aug<-filter(cycle2020, month=="Aug")
+cycleseoho.aug.days<-lm(Hires~eat_out_to_help_out,data=cycleseoho.aug)
+summary(cycleseoho.aug.days)
+confint(cycleseoho.aug.days)
+
+
+```
+
+From the above analysis we can say that eat out to help out does not have  a significant  interaction(b=-8102,t(29)=-1.946,p>0.001) upon hires in the year 2020 in the month August.
+
+
+
+
+
+### **Hires by Work From Home**
+```{r}
+#Aov model done for the combined effect of work from home and year on the Hires with year by month as a repeated measure across years
+cycle.by.wfh<-aov(Hires~wfh*year+Error(year/month), data= cycle)
+summary(cycle.by.wfh)
+```
+
+### **Hires by rule of 6 indoors**
+```{r}
+#Aov model done for the combined effect of rule of 6 indoors and year on the Hires with year by month as a repeated measure across years
+cycle.by.RO6<-aov(Hires~rule_of_6_indoors*year+Error(year/month), data= cycle)
+summary(cycle.by.RO6)
+```
+
+
+
+Based on the above interactions we can say that there is an interaction of both the covid factors only when we consider the entire dataset(error:within) and not significant when we consider the individual effect of variable and year on Hires.
+
+Rule of 6 indoors:year within year and months is significant(f=4.39, p<0.05), similarlt the combined effect of work from home and year within year and months is significant(f=8.96, p<0.01).
+
+Thus we can say that the covid variables might vary across the multiple years and in order to find the specific interaction we proceed by reducing the data set along side the pre-covid and post-covid areas(2017-2023).
+
+
+```{r}
+#Creating a new data set along side the above mentioned timeline
+regulatedyears<-filter(london_cycles,london_cycles$year %in% c("2017","2018","2019","2020","2021","2022","2023"))
+
+#Converting the months as a factor in order to analyse in chronological order
+regulatedyears$month<-factor(regulatedyears$month, levels=month.abb)
+
+```
+
+
+### **Analysis of work from home on new data set across the years**
+```{r}
+#Multi Linear model studying the impact of the combined effect of work from home and year on Hires
+wfhcov<-lm(Hires~wfh*year, data = regulatedyears)
+summary(wfhcov)
+# Confidence Interval for the above model
+confint(wfhcov)
+
+```
+
+
+From the above results we can say that the combined effect of work from home and the year has a positive significant impact only when the year is 2020(b=7833.1, t(2456)=5.404,p<0.001).This significance is found in comparison to the year 2017(pre-covid) which is kept as reference. 
+
+Thus we proceed with the analysis of the effect of work from home on Hires across the various months of the year 2020.
+
+### **Analysis of work from home on new data set across the months of 2020**
+```{r}
+#filtering out the year 2020 alone for further analysis
+year2020<-regulatedyears%>%filter(year=="2020")
+
+#Multi Linear model studying the impact of the combined effect of work from home and month on Hires
+wfhmonth<-lm(Hires~wfh*month, data = year2020)
+summary(wfhmonth)
+
+#Confidence Interval for the above model
+confint(wfhmonth)
+
+
+
+```
+Based on the above analysis we can say that work from home does not have a significant influence(t(13,352)=27.84, p<0.001) over Hiring across months of 2020 individually in comparison to January 2020 , but still having a positive significant impact as a whole on the year 2020.
+
+We cant analyse the individual impact of work from home on Hires across the months due to lack of information.Thus, we proceed with a similar analysis for the Rule of 6 as a factor omitting further analysis on days.
+
+### **Analysis of Rule of 6 on the new data set across the years**
+```{r}
+#Multi Linear model to examine the combined effect of rule of 6 indoors and year on Hires
+Ro6cov<-lm(Hires~year*rule_of_6_indoors, data = regulatedyears)
+summary(Ro6cov)
+
+#Confidence Interval for the above model
+confint(Ro6cov)
+```
+From the above results we can say that the rule of 6 indoors has a small significant negative impact on the year2020(b=-4930.44,t(2456)=-2.261,p<0.001) in comparison to the year 2017(pre-covid) and thus we proceed to perform the monthly analysis of rule of 6 indoors on the different months for the year 2020.
+
+### **Analysis of Rule of 6 on the new data set across the months**
+```{r}
+#Multi Linear Model to examine the combined effect of rule of 6 indoors and month on Hires
+Ro6month<-lm(Hires~month*rule_of_6_indoors, data = year2020)
+summary(Ro6month)
+
+#Confidence Interval for the above model
+confint(Ro6month)
+```
+
+Based on the above analysis we can say that rule of 6 indoors does not have a significant influence over Hiring across months of 2020 individually in comparison to January, but still having a negative significant impact as a whole on the year 2020.We cant analyse the individual impact of rule of 6 indoors on Hires across the months due to lack of information.Thus, we omit further analysis on days.
+
+
+Thus, upon analysis we can say that the Covid Variables don't have a significant effect on Hires across the years 2017-2023(pre-covid:post-covid).The change in the Hires observed from Figure 4 might be due to various other factors which were not included in the analysis.
+
+
+-----------------------------------------------------------------------------------------------------
+# **Question 2**
+
+Our aim is to examine the effect of average and total reviews on the daily sales of books along with an examination on whether the sale price has an effect on daily sales and if the genre of the book has an influence over the daily sales.
+
+
+### **Data Reading**
+```{r}
+#To Read the dataset 
+book_data<-read.csv("publisher_sales.csv")
+
+```
+
+### **Data Dictionary**
+| Variable       | Description                                     |
+|----------------|-------------------------------------------------|
+| sold.by        | Books sold by which service                     |
+| publisher.type | classification of publisher based on their size |
+| genre          | describes the category of book                  |
+| avg.review     | average review of the book                      |
+| daily.sales    | average number of sales (minus refunds)         |
+| total.reviews  | total reviews received                          |
+| sale.price     | price at which the issue is sold                |
+
+
+### **Data Structure and Summary**
+```{r}
+#To check the structure of the data structure
+str(book_data)
+#To print the summary of the data set
+summary(book_data)
+
+#To convert genre into a factor as it is a categorical variable
+book_data$genre<-as.factor(book_data$genre)
+```
+### **Data Cleaning**
+
+```{r}
+#Plotting the boxplot in order to identify outliers
+bp<-boxplot(book_data$daily.sales,  ylab = "daily sales")
+#Plotting the histogram across various the target variable and other influencing variables
+g1<-ggplot(book_data)+geom_histogram(aes(x=daily.sales))+
+  labs(x= "average number of sales(daily)", y="Count",title="Distribution of Daily Sales")+
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())
+  
+
+g2<-ggplot(book_data)+geom_histogram(aes(x=total.reviews))+
+  labs(x= "Total Number of Reviews", y="Count",title="Distribution of Total Reviews")+
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())
+
+
+g3<-ggplot(book_data)+geom_histogram(aes(x=avg.review))+
+  labs(x= "average reviews", y="Count",title="Distribution of average reviews")+
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())
+
+
+g4<-ggplot(book_data)+geom_histogram(aes(x=sale.price))+
+  labs(x= "sale price", y="Count",title="Distribution of sale price")+
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())
+
+#Arranging the Multiple Plots
+grid.arrange(g1,g2,g3,g4)
+```
+
+
+
+Based on the above graphs we identify that there is one negative record present in daily sales which is not possible thus we remove it.
+
+```{r}
+#Removal of the one negative record present in daily sales
+book_data <- subset(book_data, daily.sales >= 0)
+```
+### **Co-Relation Check for the Variables**
+```{r}
+#We do this to check for co-relation between the review variables and the target variable and we tend to use spearman as the histogram tends to be slightly positively skewed. 
+
+rcorr(as.matrix(select(book_data, total.reviews, avg.review,daily.sales)), type = "spearman")
+
+
+```
+
+
+From the above Rcorr matrix we can say that the total reviews has a slightly significant(rcorr=0.68,p<0.001) impact over the daily sales when compared to the other variables.
+
+### **Visualizing the Effect of Total Reviews and Average Reviews on Sales**
+```{r}
+
+#Plotting the comparison plot between total reviews and daily sales
+ggplot(book_data,aes(x=total.reviews,y=daily.sales))+
+  geom_point()+
+  labs(x= "Total Reviews", y="Sales",title="Distribution of Daily Sales across Total Reviews")+
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())
+
+#Plotting the comparison plot between average reviews and daily sales
+ggplot(book_data,aes(x=avg.review,y=daily.sales))+
+  geom_point()+
+  labs(x= "Average Review", y="Sales",title="Distribution of Daily Sales across average reviews")+
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())
+
+
+```
+
+
+From the graphs we can see that the sales are more dense between the 50 and 200 total reviews also we can,see that the points are more dense near the 4 to 5 average rating.
+
+
+
+### **Effect of Reviews on Sales**
+```{r}
+#Linear Model along with its confident interval for effect of both total and average reviews on daily sales 
+
+sales.model<- lm(daily.sales ~ total.reviews+avg.review, data = book_data)
+summary(sales.model)
+confint(sales.model)
+
+#Linear Model along with its confident interval for the combined effect of both total and average reviews on daily sales
+
+sales.model2<- lm(daily.sales ~ total.reviews*avg.review, data = book_data)
+summary(sales.model2)
+confint(sales.model2)
+
+#To understand the effect of average review alone on the daily sales
+
+salesandavg<-lm(daily.sales~avg.review,data = book_data)
+summary(salesandavg)
+
+# To compare and understand which combination of effect on the target variable is better
+
+sales.by.reviews2<-anova(sales.model2,sales.model)
+sales.by.reviews2
+
+```
+From the above analysis we can say that the combined effect of total reviews and average reviews on daily.sales is significant as that model has a lower RSS and higher adjusted R-squared values when compared with the main effect model.
+
+With every 1 unit change in Total reviews(t(5995)=0.14,p<0.001) the daily sales has a positive change of 0.14 and with every 1 unit change in average reviews(t(5995)=14.67,p<0.001) the daily sales has a negative change of 14.67.
+
+
+### **Effect of Sale Price upon Daily Sales and Different Genres**
+```{r}
+#LM model to identify the influence of sale price on daily sales
+salesandprice<- lm(daily.sales~sale.price, data = book_data)
+summary(salesandprice)
+confint(salesandprice)
+#LM model to identify the influence of genre on daily sales
+salesandgenre<-lm(daily.sales~genre, data= book_data)
+summary(salesandgenre)
+confint(salesandgenre)
+#LM model to identify the influence of combined effect of both average and total reviews on daily sales
+salesbycombined<-lm(daily.sales~sale.price*genre, data=book_data)
+summary(salesbycombined)
+confint(salesbycombined)
+#LM model to identify the influence of both the average and total reviews on daily sales
+salesbymain<-lm(daily.sales~sale.price+genre,data=book_data)
+summary(salesbymain)
+confint(salesbymain)
+#To understand and identify which combination of variables has a practical and better effect on the daily sales
+comparison1<-anova(salesbymain,salesbycombined)
+comparison1
+```
+From the above analysis we can say that the combined effect of sale price and genre on daily.sales is significant as that model has a lower RSS and higher adjusted R-squared values when compared with the main effect model. For every 1 unit increase in sale.price results in a 0.71 decrease in the daily.sales(t(5993)=-0.7104,p<0.004).
+
+With every unit increase in the sale price the YA_fiction genre decreases by 2.83 with respect to adult fiction(t(5993)=-2.8356,p<0.001). And the combined interaction of non_fiction and sale.price(t(5993)=0.64,p>0.05) on the daily sales with respect to adult_fiction is not significant.
+
+The YA_fiction(t(5993)=-2.8356,p<0.001) genre has a significant effect on the daily sales in 95% CI[-3.52,-2.15]
+
+
+
+### **Effect of the Variables across Genre**
+```{r}
+#Estimated means of the sales under the influence of both the price and genre across genre
+dailygenre<-emmeans(salesbycombined,~genre)
+summary(dailygenre)
+#Visualising the emmeans across genre
+plot(dailygenre)+coord_flip()
+```
+
+This shows us that the mean number of daily sales varies for the respective genres alongside the confident intervals presented above. From the analysis we can say that the mean number of sales for adult fiction is 80.9 with 95% CI[79.4,82.4] , non function is 63.8 with 95% CI[61.4,66.3] and YA fiction is 104.8 with 95% CI[103.3,106.3].
+
+
