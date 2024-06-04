@@ -1,0 +1,193 @@
+---
+title: 'Business Statistics Mid-Term Assessment IB94X0 2023-2024 #1'
+author: '5587354'
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(emmeans)
+library(kableExtra)
+options(width=100)
+
+```
+
+------------------------------------------------------------------------
+
+# Section 1
+
+This data set contains information spanning 8 years, focusing on the statistics concerning children from low-income households in various boroughs of London. These boroughs are further divided into smaller units called wards. Our task is to analyze this data and compute the standard deviation, as well as determine the minimum and maximum number of low-income household children present in each year, encompassing all the boroughs.
+
+The report answers the specific questions namely:
+
+1.Provide a table that shows each borough along with their respective average number of children in low income households per ward across all years in the data set along with their respective standard deviation, minimum and maximum number of children in any year.
+
+2.Exclude certain boroughs from the data set for further analysis namely City of London,Kensington and Chelsea,Kingston upon Thames,Richmond upon Thames and Westminster.
+
+3.Provide a visualization that shows the distribution of children in low income households in wards for each year
+
+4.Perform and report the results of a t-test comparing the earliest and latest year.
+
+### **Reading the Data Set**
+
+```{r}
+#To check the dataset we have to see the summary and structure of all the data present 
+low_income<-read.csv("children_low_income_data.csv")
+
+#to check the structure of the data set
+str(low_income)
+
+#to print the summary of the data set
+summary(low_income)
+
+```
+
+### **Data Dictionary**
+
+| Variable    | Description                                            |
+|-------------|--------------------------------------------------------|
+| Ward.code   | Code of each ward                                      |
+| Wards..2018 | Contains all wards within all boroughs                 |
+| Borough     | Names of all boroughs                                  |
+| year        | Contains the timeline for all the years from 2014-2021 |
+| children    | Number of children in low income households            |
+
+### **Data Quality Check and Cleaning**
+
+```{r}
+#the following code has been done to remove the NA values from the data set
+low_income_cleaned<-filter(low_income,!is.na(low_income$children))
+
+#To check for outliers we are plotting a histogram to visually check
+ggplot(low_income_cleaned,aes(x=children,y=..density..))+
+geom_histogram()+geom_density()
+
+
+#the histogram doesn't have any breaks and the density curve was smooth thus we concluded that there were no significant outliers in the data set and it was an almost normal distribution.Thus, only the NA values were removed.
+
+```
+
+### **1.Evaluating Standard Deviation , Mean , Minimum and Maximum values for the Data Set**
+
+```{r}
+#the following chunk of code has been done to calculate mean,standard deviation , minimum and maximum of the number of children in the data set
+evaluvated_lowincome<-low_income_cleaned%>%group_by(Borough)%>%
+             summarise(Average=round(mean(children,na.rm = TRUE),2),
+                       Standard_deviation=round(sd(children,na.rm=TRUE),2),
+                       Minimum=round(min(children,na.rm = TRUE),2),
+                       Maximum=round(max(children,na.rm=TRUE),2))
+
+evaluvated_lowincome
+```
+
+### **2.Filtering the unusual Boroughs**
+
+```{r}
+#the following chunk has been done to remove and filter out the unusual boroughs mentioned in the problem statement
+Boroughremove=c("City of London","Kensington and Chelsea","Kingston upon Thames","Richmond upon Thames","Westminster")
+low_income_filtered<-filter(low_income_cleaned,!(Borough%in%Boroughremove))
+
+(low_income_filtered%>%group_by(Borough))
+
+```
+
+### **3.Visualization of the Data with Standard Deviation and Mean**
+
+```{r}
+#The  code snippet below was done to compute the mean number of children across all the years.
+Mean_children=low_income_filtered%>%
+                group_by(year) %>% 
+                summarise(MeanChildren=mean(children))
+
+#The  code snippet below was done to compute the standard deviation of children across all the years.
+SD_children=low_income_filtered%>%
+            group_by(year)%>%
+            summarise(SDchildren=sd(children))
+
+#The code computes the sum of the mean and standard deviation of the children. This is performed to create a plot that illustrates the error range by including two standard deviations above and below the mean value.
+SDM=SD_children$SDchildren+Mean_children$MeanChildren
+
+#This section of the code is responsible for generating a jitter plot that includes appropriate labels and legends. The plot displays the relationship between the number of children in low-income households and the respective years. Different data points are assigned distinct shapes, and a legend is included to ensure a easier interpretation of the plot.
+children_plot<-ggplot(low_income_filtered,aes(x=year,y=children))+
+                   geom_jitter(color="light blue",alpha=30)+
+                   geom_point(data = Mean_children,aes(y=MeanChildren,shape="Mean"),size=2)+
+                    geom_line(data=Mean_children,aes(y=MeanChildren))+
+                   geom_point(data = SD_children,aes(y=SDchildren,shape="Standard Deviation"),size=2)+
+                   geom_point(data=SD_children,aes(y=SDM,shape="Standard Deviation"),size=2)+
+  
+                    labs(x="Years", y="Number of Children in Low Income Households",shape="Parameters") + 
+                    ggtitle("Jitter Plot - Number of Children in Low Income Households across all years")+                                      theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.1),
+                    panel.grid =element_blank(),panel.border = element_blank(),
+                    panel.background = element_blank())+
+  labs(caption = "Figure 1. The distribution of Number of Children in Low Income Households across the years")
+
+#To print the plot                          
+(children_plot)
+
+```
+
+### **4a.Null Hypothesis Significance Testing**
+
+```{r}
+#The provided code is intended to extract the data for the years 2014 and 2021. This preparation is carried out in order to perform a t-test to compare the data specifically for these two mentioned years.
+comparing_years<- c(2014, 2021)
+childrengrp <-low_income_filtered%>%filter(year %in% comparing_years)
+
+
+#The following code computes the t-statistic values, it provides information about the degrees of freedom in the analysis along with the individual mean values of the data sets of the 2014 and 2021 years.
+ttestdata<-t.test( children ~ year, data = childrengrp)
+
+#to print test results
+ttestdata
+```
+
+### **4b.Estimation**
+
+```{r}
+#In the code below we are using the linear model function to run a t-test on the number of children data of the data set
+children_in_years <- lm(children~year, data=childrengrp)
+#We generate the confidence interval for the 2 years through the code below
+(children.emm <- emmeans(children_in_years, ~year))
+#A comparison is generated for the 2 years through the code below
+(children.year.contrast <- confint(pairs(children.emm)))
+```
+
+------------------------------------------------------------------------
+
+# Section 2
+
+This report presents the analysis of the data set containing 5120 data points.Focused on the statistics concerning children from low-income households in various boroughs of London,The boroughs are further divided into smaller units.The data integrity and quality was checked and only the NA values were removed.The requested parameters were calculated and tabulated.
+
+The following table depicts the cleaned data along with the parameters requested.
+
+```{r, echo=FALSE}
+evaluvated_lowincome %>%
+  kbl(caption = "Table 1. Summary of Children in Low Income Households across all years", format="html") %>%
+  kable_styling()%>%scroll_box(height ="300px")%>% kable_styling(full_width = FALSE, font_size = 14) %>%
+  kable_material("striped")
+```
+
+The following table depicts the data set after filtering out the unusual boroughs as requested.
+
+```{r, echo=FALSE}
+low_income_filtered %>%
+  kbl(caption = "Table 2. Table of Children in Low Income Households(filtered unusual boroughs)") %>%
+  kable_styling()%>%scroll_box(height = "300px")
+```
+
+The distribution of the number of children in low income households across the years along with their respective standard deviation and mean are shown in Fig.1
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+children_plot
+```
+
+
+From the above distribution we can infer that all the statistic parameters see a steady rise till 2019. the year 2019 has a maximum mean number of children in low income household when compared to the other years. Post 2019 we can see a steady decline through the years till 2021 in the number of children.
+
+
+A t-test analysis shows that the mean number of children in the year 2014 is 528.And the mean number of children in the year 2021 is 604. The mean number of children in 2021 is considerably larger when compared to 2014 as Welch t(1095)=4.02,p<0.0001, which means that the Null Hypothesis Significance Testing has failed and an alternative testing hypothesis was preferred.
+
+The mean number of children in 2021 is considerably large by 76. The mean number of children in 2014 is 528 95% CI[502,554].The mean number of children in 2021 is 604 95% CI[578,630]. The mean number of children is 76,95% CI[-112,-39] smaller in 2014 when compared to 2021.
