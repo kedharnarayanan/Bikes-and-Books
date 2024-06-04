@@ -1,12 +1,3 @@
----
-title: 'Business Statistics End of Term Assessment IB94X0 2023-2024 #1'
-author: '5587354'
-output:
-  html_document:
-    toc: yes
-    toc_depth: 3
----
-
 ```{r setup, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(Hmisc)
@@ -15,9 +6,9 @@ library(kableExtra)
 library(gridExtra)
 
 ```
+# **BIKES**
 
-# **Question 1**
-Our aim is to examine the effect upon bike hires as a result of the COVID 
+Examine the effect upon bike hires as a result of the COVID 
 factors namely: Work From Home, Rule of 6 Indoors, and the Eat Out to Help Out scheme and further perform analysis on their potential differnces across years, months and days.
 
 ### **Data Reading**
@@ -287,7 +278,7 @@ Thus, upon analysis we can say that the Covid Variables don't have a significant
 
 
 -----------------------------------------------------------------------------------------------------
-# **Question 2**
+# **BOOKS**
 
 Our aim is to examine the effect of average and total reviews on the daily sales of books along with an examination on whether the sale price has an effect on daily sales and if the genre of the book has an influence over the daily sales.
 
