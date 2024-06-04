@@ -1,12 +1,3 @@
----
-title: 'Business Statistics Mid-Term Assessment IB94X0 2023-2024 #1'
-author: '5587354'
-output:
-  html_document:
-    toc: yes
-    toc_depth: 3
----
-
 ```{r setup, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(emmeans)
@@ -21,15 +12,6 @@ options(width=100)
 
 This data set contains information spanning 8 years, focusing on the statistics concerning children from low-income households in various boroughs of London. These boroughs are further divided into smaller units called wards. Our task is to analyze this data and compute the standard deviation, as well as determine the minimum and maximum number of low-income household children present in each year, encompassing all the boroughs.
 
-The report answers the specific questions namely:
-
-1.Provide a table that shows each borough along with their respective average number of children in low income households per ward across all years in the data set along with their respective standard deviation, minimum and maximum number of children in any year.
-
-2.Exclude certain boroughs from the data set for further analysis namely City of London,Kensington and Chelsea,Kingston upon Thames,Richmond upon Thames and Westminster.
-
-3.Provide a visualization that shows the distribution of children in low income households in wards for each year
-
-4.Perform and report the results of a t-test comparing the earliest and latest year.
 
 ### **Reading the Data Set**
 
